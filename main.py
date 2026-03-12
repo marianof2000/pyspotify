@@ -16,7 +16,7 @@ def main():
         pyyoutube.main()
         
     else:
-        print("❌ Error: Debes especificar --sp (Spotify) o --yt (YouTube)")
+        print("Error: Debes especificar --sp (Spotify) o --yt (YouTube)")
         print("Ejemplo: python main.py --sp -f lista.txt")
 
 if __name__ == "__main__":

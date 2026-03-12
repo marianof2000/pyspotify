@@ -148,7 +148,7 @@ def _compose_folder_name(info_dict):
     if not artist_name:
         artist_name = "Unknown Artist"
 
-    folder_name = f"{artist_name} - {album_title}".strip().replace("Album", "")
+    folder_name = f"{artist_name} {album_title}".strip().replace("Album", "")
     folder_name = "".join(folder_name.split())
     is_playlist = bool(info_dict.get("_type") == "playlist" or info_dict.get("entries"))
     return folder_name, is_playlist
