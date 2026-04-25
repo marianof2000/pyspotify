@@ -25,7 +25,7 @@ def main():
     else:
         archivo_discos = os.path.join(RAIZ, "discos")
         #print(archivo_discos)
-        functions.descargar_discos_desde_archivo(archivo_discos)
+        funcionessp.descargar_discos_desde_archivo(archivo_discos)
     # limpiar_archivos_m3u()
 
 
