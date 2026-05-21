@@ -28,10 +28,10 @@ python3 main.py --yt
 
 ## Spotify
 
-El flujo de Spotify lee URLs desde:
+El flujo de Spotify lee URLs desde `src/links.txt` por defecto, igual que YouTube.
 
 ```text
-~/Music/Spotify/discos
+src/links.txt
 ```
 
 Cada linea debe contener una URL de Spotify. Ejemplo:
@@ -45,6 +45,12 @@ Para ejecutar:
 
 ```bash
 python3 main.py --sp
+```
+
+Tambien se puede indicar otro archivo:
+
+```bash
+python3 main.py --sp -f lista.txt
 ```
 
 Las descargas se guardan dentro de:
