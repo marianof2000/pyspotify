@@ -85,6 +85,7 @@ def _build_common_opts(
     cookies: Optional[str],
     proxy: Optional[str],
     rate_limit: Optional[str],
+    no_warnings: bool,
     no_playlist: bool,
 ) -> dict:
     """Opciones comunes para YoutubeDL."""
@@ -99,7 +100,7 @@ def _build_common_opts(
         "continuedl": True,
         "quiet": False,
         "nocheckcertificate": True,
-        "no_warnings": True,
+        "no_warnings": no_warnings,
         # Robustez:
         "retries": 10,
         "fragment_retries": 10,
@@ -179,6 +180,7 @@ def download_disc(
     cookies: Optional[str],
     proxy: Optional[str],
     rate_limit: Optional[str],
+    no_warnings: bool,
     no_playlist: bool,
 ) -> Optional[Path]:
     """
@@ -206,7 +208,7 @@ def download_disc(
     outtmpl = str(folder / name_tmpl)
 
     ydl_opts = _build_common_opts(
-        outtmpl, kbps, cookies, proxy, rate_limit, no_playlist
+        outtmpl, kbps, cookies, proxy, rate_limit, no_warnings, no_playlist
     )
 
     def _progress_hook(d):

@@ -4,7 +4,9 @@ import logging
 import json
 from typing import List
 import os
+import re
 import subprocess
+import time
 
 HOME = os.path.expanduser("~")
 RAIZ = os.path.join(HOME, "Music/Spotify")
@@ -80,7 +82,7 @@ def procesar_playlist_y_renombrar(album_dir: str):
         if item.endswith((".m3u", ".m3u8")):
             playlist_path = os.path.join(album_dir, item)
             try:
-                rename_mp3_from_playlist(album_dir, playlist_path)
+                _rename_mp3_from_playlist(album_dir, playlist_path)
             finally:
                 # os.remove(playlist_path)
                 logging.info(f"Eliminada playlist: {playlist_path}")

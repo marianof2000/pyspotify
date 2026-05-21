@@ -58,8 +58,10 @@ def main():
     )
     parser.add_argument(
         "--no-warnings",
+        action="store_false",
+        dest="no_warnings",
         default=True,
-        help="Sin advertencias",
+        help="Muestra advertencias de yt-dlp.",
     )
     parser.add_argument(
         "--no-playlist",
@@ -88,6 +90,7 @@ def main():
             cookies=args.cookies,
             proxy=args.proxy,
             rate_limit=args.rate_limit,
+            no_warnings=args.no_warnings,
             no_playlist=args.no_playlist,
         )
         if folder:
