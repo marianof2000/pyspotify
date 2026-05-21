@@ -4,13 +4,32 @@ import logging
 import json
 from typing import List
 import os
+from pathlib import Path
 import re
 import subprocess
 import time
+from urllib.parse import urlparse
 
 HOME = os.path.expanduser("~")
-RAIZ = os.path.join(HOME, "Music/Spotify")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+RAIZ = str(PROJECT_ROOT / "salida")
 SPOTDL_PROGRAM = os.path.join(HOME, ".pyenv/shims/spotdl")
+
+
+def _is_spotify_url(url: str) -> bool:
+    """
+    Contrato:
+        Determina si una cadena representa un enlace de Spotify.
+    Precondiciones:
+        `url` debe ser una cadena ya normalizada con `strip`.
+    Postcondiciones:
+        Devuelve True para URLs web de Spotify o URIs `spotify:`.
+    """
+    if url.startswith("spotify:"):
+        return True
+    parsed = urlparse(url)
+    host = parsed.netloc.lower()
+    return host == "open.spotify.com" or host.endswith(".spotify.com")
 
 def _run_spotdl_command(command: List[str]):
     """
@@ -37,7 +56,7 @@ def _get_album_info(url: str) -> dict:
         Obtiene metadata del album o playlist de Spotify usando `spotdl save`.
     Precondiciones:
         `url` debe ser una URL aceptada por `spotdl`.
-        `RAIZ` debe existir o permitir escribir el archivo temporal `datos.spotdl`.
+        `RAIZ` debe poder crearse para escribir el archivo temporal `datos.spotdl`.
     Postcondiciones:
         Devuelve el primer objeto de metadata del archivo generado por `spotdl`.
         Intenta eliminar el archivo temporal antes de finalizar.
@@ -45,6 +64,7 @@ def _get_album_info(url: str) -> dict:
     """
     output_file = os.path.join(RAIZ, "datos.spotdl")
     try:
+        os.makedirs(RAIZ, exist_ok=True)
         _run_spotdl_command([SPOTDL_PROGRAM, "save", url, "--save-file", output_file])
         time.sleep(5)
         with open(output_file, "r", encoding="utf-8") as f:
@@ -106,7 +126,7 @@ def _rename_mp3_from_playlist(album_dir: str, playlist_path: str):
                     logging.error(f"Error al renombrar {old_path}: {e}")
 
 
-def procesar_playlist_y_renombrar(album_dir: str):
+def _procesar_playlist_y_renombrar(album_dir: str):
     """
     Contrato:
         Busca playlists dentro de un directorio de album y procesa sus renombres.
@@ -127,19 +147,20 @@ def procesar_playlist_y_renombrar(album_dir: str):
                 logging.info(f"Eliminada playlist: {playlist_path}")
 
 
-def _download_album(url: str):
+def _download_album(url: str) -> bool:
     """
     Contrato:
         Descarga un album o playlist de Spotify y procesa sus archivos resultantes.
     Precondiciones:
         `url` debe ser una URL aceptada por `spotdl`.
-        `RAIZ` debe existir o permitir crear directorios de artista y album.
+        `RAIZ` debe existir o poder crearse para crear directorios de artista y album.
         El comando `spotdl` configurado debe estar disponible.
     Postcondiciones:
         Crea el directorio de destino si no existe.
         Ejecuta la descarga con `spotdl`.
         Intenta procesar playlists generadas para renombrar MP3.
         Restaura el directorio de trabajo a `RAIZ` al finalizar.
+        Devuelve True si el flujo del album finaliza sin excepciones.
     """
     try:
         album_info = _get_album_info(url)
@@ -157,35 +178,48 @@ def _download_album(url: str):
         time.sleep(5)  # Espera a que terminen de generarse los archivos
 
         # *** NUEVO: procesar playlist y renombrar los mp3 ***
-        procesar_playlist_y_renombrar(album_dir)
+        _procesar_playlist_y_renombrar(album_dir)
+        return True
 
     except Exception as e:
         logging.error(f"Error al descargar el álbum: {e}")
+        return False
     finally:
         os.chdir(RAIZ)
 
 
-def descargar_discos_desde_archivo(archivo_discos: str):
+def _descargar_discos_desde_archivo(archivo_discos: str) -> bool:
     """
     Contrato:
         Descarga secuencialmente discos de Spotify listados en un archivo.
     Precondiciones:
         `archivo_discos` debe apuntar a un archivo de texto legible.
-        Cada linea no vacia deberia contener una URL compatible con `spotdl`.
+        Cada linea no vacia puede contener una URL; solo se procesan las de Spotify.
     Postcondiciones:
-        Intenta descargar cada URL del archivo en orden.
+        Intenta descargar cada URL de Spotify del archivo en orden.
         Registra errores de archivo inexistente o fallos generales.
-        No devuelve valor.
+        Devuelve True si todos los links de Spotify procesados finalizan correctamente.
     """
+    hubo_error = False
     try:
         with open(archivo_discos, "r", encoding="utf-8") as f:
             for disco_url in f:
-                _download_album(disco_url.strip())
+                disco_url = disco_url.strip()
+                if not disco_url or disco_url.startswith("#"):
+                    continue
+                if not _is_spotify_url(disco_url):
+                    logging.info(f"Link ignorado por no ser de Spotify: {disco_url}")
+                    continue
+                if not _download_album(disco_url):
+                    hubo_error = True
                 time.sleep(5)
+        return not hubo_error
     except FileNotFoundError:
         logging.error(f"No se encontró el archivo: {archivo_discos}")
+        return False
     except Exception as e:
         logging.error(f"Error al procesar el archivo: {e}")
+        return False
 
 
 def _limpiar_archivos_m3u():

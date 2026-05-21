@@ -2,6 +2,7 @@
 
 import logging
 import argparse
+import sys
 from pathlib import Path
 from src import funcionessp
 
@@ -24,7 +25,7 @@ def main():
         `funcionessp` debe poder encontrar y ejecutar `spotdl`.
     Postcondiciones:
         Delega la descarga de las URLs al modulo `funcionessp`.
-        No devuelve valor; los resultados se escriben en el arbol de musica.
+        Sale con codigo 1 si algun link de Spotify falla.
     """
     parser = argparse.ArgumentParser(
         description="Lee URLs de Spotify desde links.txt y descarga cada disco con spotdl."
@@ -39,7 +40,8 @@ def main():
 
     script_dir = Path(__file__).resolve().parent
     links_path = (script_dir / args.file).resolve()
-    funcionessp.descargar_discos_desde_archivo(str(links_path))
+    if not funcionessp._descargar_discos_desde_archivo(str(links_path)):
+        sys.exit(1)
 
 
 if __name__ == "__main__":

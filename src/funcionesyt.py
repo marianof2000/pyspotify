@@ -1,17 +1,15 @@
 # Funciones de descarga para YouTube Music
 
-import json
-import os
 import re
+import time
 import unicodedata
 from pathlib import Path
-from typing import Iterable, Optional, Tuple
+from typing import Iterable, Optional
+from urllib.parse import urlparse
 from yt_dlp import YoutubeDL
 
-DEFAULT_LINKS_FILE = "links.txt"
 
-
-def read_urls(links_path: Path) -> Iterable[str]:
+def _read_urls(links_path: Path) -> Iterable[str]:
     """
     Contrato:
         Lee URLs desde un archivo de texto.
@@ -28,6 +26,34 @@ def read_urls(links_path: Path) -> Iterable[str]:
         if not line or line.startswith("#"):
             continue
         yield line
+
+
+def _is_youtube_url(url: str) -> bool:
+    """
+    Contrato:
+        Determina si una cadena representa un enlace de YouTube o YouTube Music.
+    Precondiciones:
+        `url` debe ser una cadena ya normalizada con `strip`.
+    Postcondiciones:
+        Devuelve True para dominios `youtube.com`, subdominios y `youtu.be`.
+    """
+    parsed = urlparse(url)
+    host = parsed.netloc.lower()
+    return host == "youtu.be" or host == "youtube.com" or host.endswith(".youtube.com")
+
+
+def _read_youtube_urls(links_path: Path) -> Iterable[str]:
+    """
+    Contrato:
+        Lee solo URLs de YouTube desde un archivo de texto compartido.
+    Precondiciones:
+        `links_path` debe apuntar a un archivo existente y legible en UTF-8.
+    Postcondiciones:
+        Genera una URL por cada linea que corresponda a YouTube.
+    """
+    for url in _read_urls(links_path):
+        if _is_youtube_url(url):
+            yield url
 
 
 def _normalize_unicode(s: str) -> str:
@@ -241,7 +267,25 @@ def _rename_thumbnails_to_cover(folder: Path):
                 pass
 
 
-def download_disc(
+def _has_recent_mp3_files(folder: Path, started_at: float, known_files: set[Path]) -> bool:
+    """
+    Contrato:
+        Determina si una descarga produjo o actualizo archivos MP3.
+    Precondiciones:
+        `folder` debe ser una ruta de directorio existente o esperada.
+        `started_at` debe ser el timestamp tomado antes de iniciar la descarga.
+        `known_files` debe contener los MP3 existentes antes de iniciar la descarga.
+    Postcondiciones:
+        Devuelve True si hay al menos un MP3 nuevo o modificado durante la descarga.
+    """
+    current_files = {path for path in folder.glob("*.mp3") if path.is_file()}
+    new_files = current_files - known_files
+    if new_files:
+        return True
+    return any(path.stat().st_mtime >= started_at for path in current_files)
+
+
+def _download_disc(
     url: str,
     base_out: Path,
     kbps: int,
@@ -260,8 +304,8 @@ def download_disc(
         `kbps` debe pertenecer al conjunto de calidades admitidas por la CLI.
         Si se informan `cookies`, `proxy` o `rate_limit`, deben ser validos.
     Postcondiciones:
-        Devuelve la carpeta de salida si la descarga se ejecuto sin excepciones.
-        Devuelve `None` si falla la extraccion previa o la descarga.
+        Devuelve la carpeta de salida si queda al menos un MP3 nuevo o actualizado.
+        Devuelve `None` si falla la extraccion previa, la descarga o no se genera audio.
         Intenta renombrar miniaturas JPG a `*.cover.jpg` al finalizar.
     """
     try:
@@ -312,10 +356,18 @@ def download_disc(
     ydl_opts["progress_hooks"] = [_progress_hook]
 
     try:
+        known_mp3_files = {path for path in folder.glob("*.mp3") if path.is_file()}
+        started_at = time.time()
         with YoutubeDL(ydl_opts) as ydl:
-            ydl.download([url])
+            result_code = ydl.download([url])
+        if result_code not in (0, None):
+            print(f"[WARN] yt-dlp terminó con código {result_code} para: {url}")
+            return None
         # Renombrar thumbnails a cover.jpg (por pista)
         _rename_thumbnails_to_cover(folder)
+        if not _has_recent_mp3_files(folder, started_at, known_mp3_files):
+            print(f"[WARN] No se generó ningún MP3 en: {folder}")
+            return None
         return folder
     except Exception as e:
         print(f"[ERROR] Falló la descarga de: {url} -> {e}")

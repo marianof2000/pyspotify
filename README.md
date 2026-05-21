@@ -29,6 +29,7 @@ python3 main.py --yt
 ## Spotify
 
 El flujo de Spotify lee URLs desde `src/links.txt` por defecto, igual que YouTube.
+Si el archivo contiene links mezclados, Spotify solo procesa los links de Spotify.
 
 ```text
 src/links.txt
@@ -56,12 +57,13 @@ python3 main.py --sp -f lista.txt
 Las descargas se guardan dentro de:
 
 ```text
-~/Music/Spotify
+salida/
 ```
 
 ## YouTube / YouTube Music
 
 El flujo de YouTube lee URLs desde `src/links.txt` por defecto.
+Si el archivo contiene links mezclados, YouTube solo procesa los links de YouTube.
 
 Ejemplo de `src/links.txt`:
 
@@ -79,7 +81,7 @@ python3 main.py --yt
 Tambien se puede indicar otro archivo, carpeta de salida o bitrate:
 
 ```bash
-python3 main.py --yt -f links.txt -o ~/Music/Spotify --kbps 320
+python3 main.py --yt -f links.txt -o salida --kbps 320
 ```
 
 Opciones utiles:
@@ -91,6 +93,8 @@ Opciones utiles:
 - `--proxy`: proxy HTTP/SOCKS.
 - `--rate-limit`: limite de velocidad, por ejemplo `2M`.
 - `--no-playlist`: descarga solo el video indicado, no la playlist completa.
+
+El directorio `salida/` esta ignorado por Git, por lo que las descargas no quedan bajo seguimiento.
 
 ## Estructura
 

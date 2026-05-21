@@ -20,6 +20,10 @@ from pathlib import Path
 from src import funcionesyt
 
 DEFAULT_LINKS_FILE = "links.txt"
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_OUTDIR = PROJECT_ROOT / "salida"
+
+
 def main():
     """
     Contrato:
@@ -42,8 +46,8 @@ def main():
     )
     parser.add_argument(
         "-o", "--outdir",
-        default="/home/marianof/Music/Spotify",
-        help="Directorio base de salida (por defecto: /home/marianof/Music/Spotify).",
+        default=str(DEFAULT_OUTDIR),
+        help=f"Directorio base de salida (por defecto: {DEFAULT_OUTDIR}).",
     )
     parser.add_argument(
         "--kbps",
@@ -86,15 +90,15 @@ def main():
     base_out = Path(args.outdir).resolve()
     base_out.mkdir(parents=True, exist_ok=True)
 
-    urls = list(funcionesyt.read_urls(links_path))
+    urls = list(funcionesyt._read_youtube_urls(links_path))
     if not urls:
-        print(f"[INFO] No hay URLs en {links_path}")
+        print(f"[INFO] No hay URLs de YouTube en {links_path}")
         return
 
-    print(f"[INFO] Voy a procesar {len(urls)} URL(s) desde {links_path}")
+    print(f"[INFO] Voy a procesar {len(urls)} URL(s) de YouTube desde {links_path}")
     for i, url in enumerate(urls, 1):
         print(f"\n[INFO] ({i}/{len(urls)}) Descargando disco: {url}")
-        folder = funcionesyt.download_disc(
+        folder = funcionesyt._download_disc(
             url=url,
             base_out=base_out,
             kbps=args.kbps,
