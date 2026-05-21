@@ -12,7 +12,15 @@ DEFAULT_LINKS_FILE = "links.txt"
 
 
 def read_urls(links_path: Path) -> Iterable[str]:
-    """Lee URLs (una por línea), ignorando vacías y comentarios (#...)."""
+    """
+    Contrato:
+        Lee URLs desde un archivo de texto.
+    Precondiciones:
+        `links_path` debe apuntar a un archivo existente y legible en UTF-8.
+    Postcondiciones:
+        Genera una URL por cada linea no vacia que no comience con `#`.
+        Lanza `FileNotFoundError` si el archivo no existe.
+    """
     if not links_path.exists():
         raise FileNotFoundError(f"No encontré {links_path}")
     for line in links_path.read_text(encoding="utf-8").splitlines():
@@ -23,14 +31,31 @@ def read_urls(links_path: Path) -> Iterable[str]:
 
 
 def _normalize_unicode(s: str) -> str:
-    """Normaliza a NFC y remueve diacríticos si es conveniente."""
+    """
+    Contrato:
+        Normaliza una cadena y remueve marcas diacriticas combinadas.
+    Precondiciones:
+        `s` debe ser una cadena de texto.
+    Postcondiciones:
+        Devuelve una cadena normalizada en forma NFKD sin diacriticos combinados.
+        No modifica la cadena original.
+    """
     s = unicodedata.normalize("NFKD", s)
     # Mantén letras y espacios, quita diacríticos combinados
     return "".join(c for c in s if not unicodedata.combining(c))
 
 
 def _slugify(name: str, maxlen: int = 120) -> str:
-    """Sanitiza a nombre de carpeta (sin caracteres conflictivos, preservando espacios)."""
+    """
+    Contrato:
+        Convierte un texto en un nombre seguro para carpeta.
+    Precondiciones:
+        `name` debe ser una cadena o un valor falsy aceptable.
+        `maxlen` debe ser un entero positivo.
+    Postcondiciones:
+        Devuelve un nombre sin caracteres conflictivos de rutas.
+        Compacta espacios, limita la longitud y evita nombres reservados comunes.
+    """
     if not name:
         return "Desconocido"
     name = _normalize_unicode(name)
@@ -52,14 +77,32 @@ def _slugify(name: str, maxlen: int = 120) -> str:
 
 
 def _probe_info(url: str) -> dict:
-    """Extrae metadata sin descargar para decidir carpeta y plantilla."""
+    """
+    Contrato:
+        Extrae metadata de una URL sin descargar el contenido.
+    Precondiciones:
+        `url` debe ser una URL aceptada por `yt-dlp`.
+        Debe haber conectividad y soporte del extractor correspondiente.
+    Postcondiciones:
+        Devuelve el diccionario de metadata entregado por `yt-dlp`.
+        Puede propagar excepciones de `YoutubeDL.extract_info`.
+    """
     ydl_opts = {"quiet": True, "skip_download": True}
     with YoutubeDL(ydl_opts) as ydl:
         return ydl.extract_info(url, download=False)
 
 
 def _build_postprocessors(kbps: int):
-    """Cadena de postprocesadores para MP3 + cover embebida + metadatos."""
+    """
+    Contrato:
+        Construye la cadena de postprocesadores de `yt-dlp`.
+    Precondiciones:
+        `kbps` debe representar una calidad MP3 valida para FFmpeg.
+        `ffmpeg` debe estar disponible cuando los postprocesadores se ejecuten.
+    Postcondiciones:
+        Devuelve una lista de configuraciones para convertir a MP3, convertir
+        miniaturas, embeber portada y escribir metadata.
+    """
     return [
         {
             "key": "FFmpegExtractAudio",
@@ -88,7 +131,17 @@ def _build_common_opts(
     no_warnings: bool,
     no_playlist: bool,
 ) -> dict:
-    """Opciones comunes para YoutubeDL."""
+    """
+    Contrato:
+        Construye las opciones comunes para una descarga con `YoutubeDL`.
+    Precondiciones:
+        `outtmpl` debe ser una plantilla de salida valida para `yt-dlp`.
+        `kbps` debe ser una calidad aceptada por el postprocesador de audio.
+        Si se informan `cookies`, `proxy` o `rate_limit`, deben ser valores validos.
+    Postcondiciones:
+        Devuelve un diccionario de opciones listo para instanciar `YoutubeDL`.
+        Incluye opciones condicionales solo cuando sus argumentos fueron provistos.
+    """
     opts = {
         "format": "bestaudio/best",
         "outtmpl": outtmpl,
@@ -117,6 +170,15 @@ def _build_common_opts(
 
 
 def _compose_folder_name(info_dict):
+    """
+    Contrato:
+        Deriva el nombre de carpeta y si el recurso representa una playlist.
+    Precondiciones:
+        `info_dict` debe ser un diccionario de metadata compatible con `yt-dlp`.
+    Postcondiciones:
+        Devuelve una tupla `(folder_name, is_playlist)`.
+        Usa valores por defecto cuando no encuentra artista o album.
+    """
     album_title = (
         info_dict.get("playlist_title") or info_dict.get("title") or "Unknown Album"
     )
@@ -157,8 +219,14 @@ def _compose_folder_name(info_dict):
 
 def _rename_thumbnails_to_cover(folder: Path):
     """
-    Renombra thumbnails .jpg resultantes a cover.jpg junto a cada mp3.
-    yt-dlp genera un .jpg por cada base de archivo; buscamos parear.
+    Contrato:
+        Renombra miniaturas JPG generadas por `yt-dlp` junto a sus MP3.
+    Precondiciones:
+        `folder` debe ser un directorio existente.
+        Las miniaturas y MP3 deben compartir el mismo stem para poder parearse.
+    Postcondiciones:
+        Para cada JPG con MP3 equivalente, intenta renombrarlo a `*.cover.jpg`.
+        Ignora errores individuales de renombrado para no cortar el flujo.
     """
     for jpg in folder.glob("*.jpg"):
         # Busca un .mp3 con mismo stem
@@ -184,8 +252,17 @@ def download_disc(
     no_playlist: bool,
 ) -> Optional[Path]:
     """
-    Descarga un “disco” (playlist o video) en su propia subcarpeta.
-    Devuelve la carpeta creada, o None si falla la extracción previa.
+    Contrato:
+        Descarga una playlist o video en una subcarpeta propia y lo convierte a MP3.
+    Precondiciones:
+        `url` debe ser aceptada por `yt-dlp`.
+        `base_out` debe existir o poder crearse antes de llamar esta funcion.
+        `kbps` debe pertenecer al conjunto de calidades admitidas por la CLI.
+        Si se informan `cookies`, `proxy` o `rate_limit`, deben ser validos.
+    Postcondiciones:
+        Devuelve la carpeta de salida si la descarga se ejecuto sin excepciones.
+        Devuelve `None` si falla la extraccion previa o la descarga.
+        Intenta renombrar miniaturas JPG a `*.cover.jpg` al finalizar.
     """
     try:
         info = _probe_info(url)
@@ -212,6 +289,15 @@ def download_disc(
     )
 
     def _progress_hook(d):
+        """
+        Contrato:
+            Reporta por consola eventos de progreso enviados por `yt-dlp`.
+        Precondiciones:
+            `d` debe ser un diccionario de estado provisto por `yt-dlp`.
+        Postcondiciones:
+            Imprime informacion de descarga o finalizacion cuando el estado aplica.
+            No devuelve valor ni altera el estado de descarga.
+        """
         if d.get("status") == "downloading":
             eta = d.get("eta")
             speed = d.get("speed")

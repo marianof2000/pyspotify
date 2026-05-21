@@ -13,7 +13,16 @@ RAIZ = os.path.join(HOME, "Music/Spotify")
 SPOTDL_PROGRAM = os.path.join(HOME, ".pyenv/shims/spotdl")
 
 def _run_spotdl_command(command: List[str]):
-    """Ejecuta un comando spotdl y captura la salida."""
+    """
+    Contrato:
+        Ejecuta un comando externo asociado a `spotdl`.
+    Precondiciones:
+        `command` debe ser una lista no vacia con el ejecutable en la primera posicion.
+        El ejecutable indicado debe existir y tener permisos de ejecucion.
+    Postcondiciones:
+        Si el comando termina correctamente, la funcion finaliza sin devolver valor.
+        Si el comando falla, registra el error y relanza `CalledProcessError`.
+    """
     try:
         logging.info(f"Ejecutando spotdl con el comando: {command}")
         subprocess.run(command, check=True)
@@ -23,7 +32,17 @@ def _run_spotdl_command(command: List[str]):
 
 
 def _get_album_info(url: str) -> dict:
-    """Obtiene información del álbum usando spotdl."""
+    """
+    Contrato:
+        Obtiene metadata del album o playlist de Spotify usando `spotdl save`.
+    Precondiciones:
+        `url` debe ser una URL aceptada por `spotdl`.
+        `RAIZ` debe existir o permitir escribir el archivo temporal `datos.spotdl`.
+    Postcondiciones:
+        Devuelve el primer objeto de metadata del archivo generado por `spotdl`.
+        Intenta eliminar el archivo temporal antes de finalizar.
+        Si la metadata no puede leerse, registra el error y relanza la excepcion.
+    """
     output_file = os.path.join(RAIZ, "datos.spotdl")
     try:
         _run_spotdl_command([SPOTDL_PROGRAM, "save", url, "--save-file", output_file])
@@ -46,7 +65,18 @@ def _get_album_info(url: str) -> dict:
 
 
 def _rename_mp3_from_playlist(album_dir: str, playlist_path: str):
-    """Renombra los mp3 en album_dir según el contenido de la playlist m3u."""
+    """
+    Contrato:
+        Renombra archivos MP3 dentro de `album_dir` usando las entradas de una playlist.
+    Precondiciones:
+        `album_dir` debe ser un directorio existente.
+        `playlist_path` debe apuntar a un archivo `.m3u` o `.m3u8` legible.
+        La playlist debe contener entradas `#EXTINF` seguidas por rutas de audio.
+    Postcondiciones:
+        Para cada pista encontrada, intenta renombrar el archivo correspondiente.
+        Registra advertencias si no encuentra el archivo esperado.
+        No devuelve valor.
+    """
     with open(playlist_path, "r", encoding="utf-8") as f:
         lines = [l.strip() for l in f if l.strip()]
     for idx, line in enumerate(lines):
@@ -77,7 +107,16 @@ def _rename_mp3_from_playlist(album_dir: str, playlist_path: str):
 
 
 def procesar_playlist_y_renombrar(album_dir: str):
-    """Busca playlists (.m3u/.m3u8) en album_dir, renombra mp3 y elimina la playlist."""
+    """
+    Contrato:
+        Busca playlists dentro de un directorio de album y procesa sus renombres.
+    Precondiciones:
+        `album_dir` debe ser un directorio existente y legible.
+    Postcondiciones:
+        Ejecuta el renombrado para cada archivo `.m3u` o `.m3u8` encontrado.
+        Registra el procesamiento de cada playlist.
+        No devuelve valor.
+    """
     for item in os.listdir(album_dir):
         if item.endswith((".m3u", ".m3u8")):
             playlist_path = os.path.join(album_dir, item)
@@ -89,7 +128,19 @@ def procesar_playlist_y_renombrar(album_dir: str):
 
 
 def _download_album(url: str):
-    """Descarga un álbum de Spotify y renombra los MP3 según la playlist."""
+    """
+    Contrato:
+        Descarga un album o playlist de Spotify y procesa sus archivos resultantes.
+    Precondiciones:
+        `url` debe ser una URL aceptada por `spotdl`.
+        `RAIZ` debe existir o permitir crear directorios de artista y album.
+        El comando `spotdl` configurado debe estar disponible.
+    Postcondiciones:
+        Crea el directorio de destino si no existe.
+        Ejecuta la descarga con `spotdl`.
+        Intenta procesar playlists generadas para renombrar MP3.
+        Restaura el directorio de trabajo a `RAIZ` al finalizar.
+    """
     try:
         album_info = _get_album_info(url)
         artist = album_info["album_artist"].replace(" ", "")
@@ -115,7 +166,17 @@ def _download_album(url: str):
 
 
 def descargar_discos_desde_archivo(archivo_discos: str):
-    """Descarga álbumes desde una lista de URLs en un archivo."""
+    """
+    Contrato:
+        Descarga secuencialmente discos de Spotify listados en un archivo.
+    Precondiciones:
+        `archivo_discos` debe apuntar a un archivo de texto legible.
+        Cada linea no vacia deberia contener una URL compatible con `spotdl`.
+    Postcondiciones:
+        Intenta descargar cada URL del archivo en orden.
+        Registra errores de archivo inexistente o fallos generales.
+        No devuelve valor.
+    """
     try:
         with open(archivo_discos, "r", encoding="utf-8") as f:
             for disco_url in f:
@@ -128,7 +189,16 @@ def descargar_discos_desde_archivo(archivo_discos: str):
 
 
 def _limpiar_archivos_m3u():
-    """Elimina todos los archivos .m3u y .m3u8 del directorio raíz."""
+    """
+    Contrato:
+        Elimina playlists `.m3u` y `.m3u8` ubicadas directamente en `RAIZ`.
+    Precondiciones:
+        `RAIZ` debe existir y ser un directorio legible.
+        El proceso debe tener permisos para eliminar los archivos encontrados.
+    Postcondiciones:
+        Borra los archivos `.m3u` y `.m3u8` encontrados en `RAIZ`.
+        Si ocurre un error de sistema, lo registra y relanza.
+    """
     try:
         for item in os.listdir(RAIZ):
             if item.endswith((".m3u", ".m3u8")):

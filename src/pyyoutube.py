@@ -21,6 +21,17 @@ from src import funcionesyt
 
 DEFAULT_LINKS_FILE = "links.txt"
 def main():
+    """
+    Contrato:
+        Ejecuta el flujo principal de descargas desde YouTube/YouTube Music.
+    Precondiciones:
+        Los argumentos de CLI deben respetar las opciones declaradas.
+        El archivo de enlaces debe existir y contener cero o mas URLs validas.
+        `yt-dlp` y `ffmpeg` deben estar disponibles para descargar y convertir.
+    Postcondiciones:
+        Crea el directorio de salida si no existe.
+        Procesa cada URL encontrada y reporta por consola si se guardo o fallo.
+    """
     parser = argparse.ArgumentParser(
         description="Lee URLs desde links.txt y descarga cada disco en su propia carpeta con MP3 (bitrate configurable) + carátula."
     )

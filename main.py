@@ -3,6 +3,15 @@ import sys
 from src import pyspotify, pyyoutube
 
 def main():
+    """
+    Contrato:
+        Selecciona el flujo de descarga a ejecutar segun las banderas de CLI.
+    Precondiciones:
+        `sys.argv` puede incluir `--sp` para Spotify o `--yt` para YouTube.
+    Postcondiciones:
+        Si la bandera es valida, delega la ejecucion al modulo correspondiente.
+        Si falta la bandera, informa el uso esperado por consola.
+    """
     # Revisamos qué bandera está presente
     if "--sp" in sys.argv:
         # IMPORTANTE: Quitamos '--sp' de sys.argv para que pyspotify
