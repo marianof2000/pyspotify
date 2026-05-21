@@ -1,14 +1,14 @@
 import sys
 # Importamos los módulos (ahora es seguro porque el código está encapsulado)
-from src import pyspotify3, pyyoutube
+from src import pyspotify, pyyoutube
 
 def main():
     # Revisamos qué bandera está presente
     if "--sp" in sys.argv:
-        # IMPORTANTE: Quitamos '--sp' de sys.argv para que pyspotify3 
+        # IMPORTANTE: Quitamos '--sp' de sys.argv para que pyspotify
         # no se queje de un "unrecognized argument: --sp"
         sys.argv.remove("--sp")
-        pyspotify3.main()
+        pyspotify.main()
         
     elif "--yt" in sys.argv:
         # Lo mismo para YouTube, quitamos la bandera antes de pasar el control
