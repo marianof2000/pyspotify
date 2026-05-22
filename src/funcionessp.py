@@ -31,6 +31,23 @@ def _is_spotify_url(url: str) -> bool:
     host = parsed.netloc.lower()
     return host == "open.spotify.com" or host.endswith(".spotify.com")
 
+
+def _safe_dir_name(name: str, fallback: str = "Desconocido") -> str:
+    """
+    Contrato:
+        Convierte texto de metadata en un nombre seguro para directorio.
+    Precondiciones:
+        `name` puede ser una cadena vacia o valor falsy.
+    Postcondiciones:
+        Devuelve un nombre sin separadores ni caracteres invalidos de rutas.
+    """
+    if not name:
+        return fallback
+    name = re.sub(r'[\\/:*?"<>|]', " ", str(name))
+    name = re.sub(r"\s+", " ", name).strip()
+    return name or fallback
+
+
 def _run_spotdl_command(command: List[str]):
     """
     Contrato:
@@ -164,8 +181,8 @@ def _download_album(url: str) -> bool:
     """
     try:
         album_info = _get_album_info(url)
-        artist = album_info["album_artist"].replace(" ", "")
-        album = album_info["album_name"].replace(" ", "_")
+        artist = _safe_dir_name(album_info.get("album_artist"), "Artista desconocido")
+        album = _safe_dir_name(album_info.get("album_name"), "Disco desconocido")
         album_dir = os.path.join(RAIZ, artist, album)
         print(album_dir)
 

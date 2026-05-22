@@ -58,6 +58,9 @@ Las descargas se guardan dentro de:
 
 ```text
 salida/
+  Banda/
+    Disco/
+      temas.mp3
 ```
 
 ## YouTube / YouTube Music

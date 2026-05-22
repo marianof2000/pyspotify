@@ -195,14 +195,14 @@ def _build_common_opts(
     return opts
 
 
-def _compose_folder_name(info_dict):
+def _compose_folder_parts(info_dict):
     """
     Contrato:
-        Deriva el nombre de carpeta y si el recurso representa una playlist.
+        Deriva artista, disco y si el recurso representa una playlist.
     Precondiciones:
         `info_dict` debe ser un diccionario de metadata compatible con `yt-dlp`.
     Postcondiciones:
-        Devuelve una tupla `(folder_name, is_playlist)`.
+        Devuelve una tupla `(artist_name, album_title, is_playlist)`.
         Usa valores por defecto cuando no encuentra artista o album.
     """
     album_title = (
@@ -237,10 +237,8 @@ def _compose_folder_name(info_dict):
     if not artist_name:
         artist_name = "Unknown Artist"
 
-    folder_name = f"{artist_name} {album_title}".strip().replace("Album", "")
-    folder_name = "".join(folder_name.split())
     is_playlist = bool(info_dict.get("_type") == "playlist" or info_dict.get("entries"))
-    return folder_name, is_playlist
+    return artist_name, album_title, is_playlist
 
 
 def _rename_thumbnails_to_cover(folder: Path):
@@ -314,8 +312,8 @@ def _download_disc(
         print(f"[WARN] No pude extraer metadata de: {url} -> {e}")
         return None
 
-    folder_name, is_playlist = _compose_folder_name(info)
-    folder = base_out / _slugify(folder_name)
+    artist_name, album_title, is_playlist = _compose_folder_parts(info)
+    folder = base_out / _slugify(artist_name) / _slugify(album_title)
     folder.mkdir(parents=True, exist_ok=True)
 
     # Elegir plantilla de numeración:
