@@ -26,6 +26,11 @@ python3 main.py --sp
 python3 main.py --yt
 ```
 
+Antes de descargar, cada flujo valida sus dependencias principales. Spotify verifica `spotdl`;
+YouTube verifica `ffmpeg` y usa `yt-dlp`.
+
+Al finalizar, cada flujo imprime un resumen con links procesados, exitosos, fallidos e ignorados.
+
 ## Spotify
 
 El flujo de Spotify lee URLs desde `src/links.txt` por defecto, igual que YouTube.

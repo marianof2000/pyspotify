@@ -16,6 +16,7 @@ Uso:
 """
 
 import argparse
+import sys
 from pathlib import Path
 from src import funcionesyt
 
@@ -90,12 +91,27 @@ def main():
     base_out = Path(args.outdir).resolve()
     base_out.mkdir(parents=True, exist_ok=True)
 
-    urls = list(funcionesyt._read_youtube_urls(links_path))
+    all_urls = list(funcionesyt._read_urls(links_path))
+    urls = [url for url in all_urls if funcionesyt._is_youtube_url(url)]
+    ignorados = len(all_urls) - len(urls)
     if not urls:
         print(f"[INFO] No hay URLs de YouTube en {links_path}")
+        print(
+            "[RESUMEN] YouTube - "
+            f"procesados: 0, ok: 0, fallidos: 0, ignorados: {ignorados}"
+        )
         return
 
+    if not funcionesyt._check_dependencies():
+        print(
+            "[RESUMEN] YouTube - "
+            f"procesados: {len(urls)}, ok: 0, fallidos: {len(urls)}, ignorados: {ignorados}"
+        )
+        sys.exit(1)
+
     print(f"[INFO] Voy a procesar {len(urls)} URL(s) de YouTube desde {links_path}")
+    ok = 0
+    fallidos = 0
     for i, url in enumerate(urls, 1):
         print(f"\n[INFO] ({i}/{len(urls)}) Descargando disco: {url}")
         folder = funcionesyt._download_disc(
@@ -109,9 +125,20 @@ def main():
             no_playlist=args.no_playlist,
         )
         if folder:
+            ok += 1
             print(f"[OK] Guardado en: {folder}")
         else:
+            fallidos += 1
             print("[WARN] Este disco no se pudo descargar.")
+    print(
+        "[RESUMEN] YouTube - "
+        f"procesados: {len(urls)}, "
+        f"ok: {ok}, "
+        f"fallidos: {fallidos}, "
+        f"ignorados: {ignorados}"
+    )
+    if fallidos:
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

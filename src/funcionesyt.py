@@ -1,12 +1,28 @@
 # Funciones de descarga para YouTube Music
 
 import re
+import shutil
 import time
 import unicodedata
 from pathlib import Path
 from typing import Iterable, Optional
 from urllib.parse import urlparse
 from yt_dlp import YoutubeDL
+
+
+def _check_dependencies() -> bool:
+    """
+    Contrato:
+        Verifica que las dependencias externas de YouTube esten disponibles.
+    Precondiciones:
+        `yt_dlp` debe poder importarse y `ffmpeg` deberia estar en PATH.
+    Postcondiciones:
+        Devuelve True si las dependencias necesarias estan disponibles.
+    """
+    if not shutil.which("ffmpeg"):
+        print("[ERROR] No se encontró ffmpeg en PATH.")
+        return False
+    return True
 
 
 def _read_urls(links_path: Path) -> Iterable[str]:

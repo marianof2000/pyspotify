@@ -6,6 +6,7 @@ from typing import List
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import time
 from urllib.parse import urlparse
@@ -48,6 +49,53 @@ def _safe_dir_name(name: str, fallback: str = "Desconocido") -> str:
     return name or fallback
 
 
+def _safe_file_name(name: str, fallback: str = "tema.mp3") -> str:
+    """
+    Contrato:
+        Convierte texto de playlist en un nombre seguro para archivo.
+    Precondiciones:
+        `name` puede ser una cadena vacia o valor falsy.
+    Postcondiciones:
+        Devuelve un nombre sin separadores ni caracteres invalidos de rutas.
+    """
+    if not name:
+        return fallback
+    name = re.sub(r'[\\/:*?"<>|]', "_", str(name))
+    name = re.sub(r"\s+", " ", name).strip()
+    return name or fallback
+
+
+def _check_dependencies() -> bool:
+    """
+    Contrato:
+        Verifica que las dependencias externas de Spotify esten disponibles.
+    Precondiciones:
+        `SPOTDL_PROGRAM` puede apuntar a un ejecutable local o estar ausente.
+    Postcondiciones:
+        Devuelve True si `spotdl` puede ejecutarse; False en caso contrario.
+    """
+    if os.path.isfile(SPOTDL_PROGRAM) and os.access(SPOTDL_PROGRAM, os.X_OK):
+        return True
+    if shutil.which("spotdl"):
+        return True
+    logging.error(f"No se encontró spotdl ejecutable en {SPOTDL_PROGRAM} ni en PATH")
+    return False
+
+
+def _spotdl_program() -> str:
+    """
+    Contrato:
+        Resuelve el ejecutable de `spotdl` a utilizar.
+    Precondiciones:
+        `_check_dependencies` deberia haber validado disponibilidad previamente.
+    Postcondiciones:
+        Devuelve la ruta hardcodeada si existe o el ejecutable encontrado en PATH.
+    """
+    if os.path.isfile(SPOTDL_PROGRAM) and os.access(SPOTDL_PROGRAM, os.X_OK):
+        return SPOTDL_PROGRAM
+    return shutil.which("spotdl") or SPOTDL_PROGRAM
+
+
 def _run_spotdl_command(command: List[str]):
     """
     Contrato:
@@ -82,7 +130,7 @@ def _get_album_info(url: str) -> dict:
     output_file = os.path.join(RAIZ, "datos.spotdl")
     try:
         os.makedirs(RAIZ, exist_ok=True)
-        _run_spotdl_command([SPOTDL_PROGRAM, "save", url, "--save-file", output_file])
+        _run_spotdl_command([_spotdl_program(), "save", url, "--save-file", output_file])
         time.sleep(5)
         with open(output_file, "r", encoding="utf-8") as f:
             return json.load(f)[0]
@@ -114,30 +162,29 @@ def _rename_mp3_from_playlist(album_dir: str, playlist_path: str):
         Registra advertencias si no encuentra el archivo esperado.
         No devuelve valor.
     """
+    album_path = Path(album_dir)
     with open(playlist_path, "r", encoding="utf-8") as f:
         lines = [l.strip() for l in f if l.strip()]
     for idx, line in enumerate(lines):
         if line.startswith("#EXTINF"):
-            # Extrae el título después de la coma
-            parts = line.split(",", 1)
-            if len(parts) != 2:
-                continue
-            track_name = parts[1].strip()
-            # La siguiente línea es la ruta al archivo MP3
             if idx + 1 < len(lines):
                 file_rel = lines[idx + 1]
-                logging.info(f"Renombrando {file_rel[2:]} → {file_rel}")
-                file_name = os.path.basename(file_rel[2:].replace(" ", "_"))
-                old_path = os.path.join(album_dir, file_name)
-                if not os.path.exists(old_path):
-                    logging.warning(f"No se encontró el archivo de audio: {old_path}")
+                file_name = Path(file_rel).name
+                if not file_name:
                     continue
-                # Sanitizar nombre de archivo
-                safe_name = re.sub(r'[\\\/:*?"<>|]', "_", file_rel)
-                new_file_name = f"{safe_name}"
-                new_path = os.path.join(album_dir, new_file_name)
+                candidates = [
+                    album_path / file_name,
+                    album_path / file_name.replace(" ", "_"),
+                ]
+                old_path = next((path for path in candidates if path.exists()), None)
+                if old_path is None:
+                    logging.warning(f"No se encontró el archivo de audio listado: {file_rel}")
+                    continue
+                new_path = album_path / _safe_file_name(file_name)
+                if old_path == new_path:
+                    continue
                 try:
-                    os.rename(old_path, new_path)
+                    old_path.rename(new_path)
                     logging.info(f"Renombrado {old_path} → {new_path}")
                 except Exception as e:
                     logging.error(f"Error al renombrar {old_path}: {e}")
@@ -160,8 +207,7 @@ def _procesar_playlist_y_renombrar(album_dir: str):
             try:
                 _rename_mp3_from_playlist(album_dir, playlist_path)
             finally:
-                # os.remove(playlist_path)
-                logging.info(f"Eliminada playlist: {playlist_path}")
+                logging.info(f"Playlist procesada: {playlist_path}")
 
 
 def _download_album(url: str) -> bool:
@@ -190,7 +236,7 @@ def _download_album(url: str) -> bool:
         logging.info(f"Directorio creado: {album_dir}")
 
         os.chdir(album_dir)
-        _run_spotdl_command([SPOTDL_PROGRAM, "download", url, "--threads", "2"])
+        _run_spotdl_command([_spotdl_program(), "download", url, "--threads", "2"])
         logging.info("Descarga completada")
         time.sleep(5)  # Espera a que terminen de generarse los archivos
 
@@ -205,7 +251,7 @@ def _download_album(url: str) -> bool:
         os.chdir(RAIZ)
 
 
-def _descargar_discos_desde_archivo(archivo_discos: str) -> bool:
+def _descargar_discos_desde_archivo(archivo_discos: str) -> dict:
     """
     Contrato:
         Descarga secuencialmente discos de Spotify listados en un archivo.
@@ -215,28 +261,41 @@ def _descargar_discos_desde_archivo(archivo_discos: str) -> bool:
     Postcondiciones:
         Intenta descargar cada URL de Spotify del archivo en orden.
         Registra errores de archivo inexistente o fallos generales.
-        Devuelve True si todos los links de Spotify procesados finalizan correctamente.
+        Devuelve un resumen con totales de links procesados, exitosos, fallidos e ignorados.
     """
-    hubo_error = False
+    resumen = {"procesados": 0, "ok": 0, "fallidos": 0, "ignorados": 0}
     try:
+        spotify_urls = []
         with open(archivo_discos, "r", encoding="utf-8") as f:
             for disco_url in f:
                 disco_url = disco_url.strip()
                 if not disco_url or disco_url.startswith("#"):
                     continue
                 if not _is_spotify_url(disco_url):
+                    resumen["ignorados"] += 1
                     logging.info(f"Link ignorado por no ser de Spotify: {disco_url}")
                     continue
-                if not _download_album(disco_url):
-                    hubo_error = True
+                spotify_urls.append(disco_url)
+        if spotify_urls and not _check_dependencies():
+            resumen["fallidos"] = len(spotify_urls)
+            resumen["procesados"] = len(spotify_urls)
+            return resumen
+        for disco_url in spotify_urls:
+            resumen["procesados"] += 1
+            if not _download_album(disco_url):
+                resumen["fallidos"] += 1
+            else:
+                resumen["ok"] += 1
                 time.sleep(5)
-        return not hubo_error
+        return resumen
     except FileNotFoundError:
         logging.error(f"No se encontró el archivo: {archivo_discos}")
-        return False
+        resumen["fallidos"] += 1
+        return resumen
     except Exception as e:
         logging.error(f"Error al procesar el archivo: {e}")
-        return False
+        resumen["fallidos"] += 1
+        return resumen
 
 
 def _limpiar_archivos_m3u():

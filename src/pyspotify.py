@@ -40,7 +40,15 @@ def main():
 
     script_dir = Path(__file__).resolve().parent
     links_path = (script_dir / args.file).resolve()
-    if not funcionessp._descargar_discos_desde_archivo(str(links_path)):
+    resumen = funcionessp._descargar_discos_desde_archivo(str(links_path))
+    print(
+        "[RESUMEN] Spotify - "
+        f"procesados: {resumen['procesados']}, "
+        f"ok: {resumen['ok']}, "
+        f"fallidos: {resumen['fallidos']}, "
+        f"ignorados: {resumen['ignorados']}"
+    )
+    if resumen["fallidos"]:
         sys.exit(1)
 
 
