@@ -65,6 +65,13 @@ def _safe_file_name(name: str, fallback: str = "tema.mp3") -> str:
     return name or fallback
 
 
+def _clean_album_name(name: str) -> str:
+    """
+    Quita el prefijo descriptivo agregado por algunas fuentes de metadata.
+    """
+    return re.sub(r"^Album\s*-\s*", "", str(name), flags=re.IGNORECASE).strip()
+
+
 def _check_dependencies() -> bool:
     """
     Contrato:
@@ -228,7 +235,10 @@ def _download_album(url: str) -> bool:
     try:
         album_info = _get_album_info(url)
         artist = _safe_dir_name(album_info.get("album_artist"), "Artista desconocido")
-        album = _safe_dir_name(album_info.get("album_name"), "Disco desconocido")
+        album = _safe_dir_name(
+            _clean_album_name(album_info.get("album_name") or ""),
+            "Disco desconocido",
+        )
         album_dir = os.path.join(RAIZ, artist, album)
         print(album_dir)
 

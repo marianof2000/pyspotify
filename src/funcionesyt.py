@@ -118,6 +118,13 @@ def _slugify(name: str, maxlen: int = 120) -> str:
     return name or "Desconocido"
 
 
+def _clean_album_name(name: str) -> str:
+    """
+    Quita el prefijo descriptivo agregado por algunas fuentes de metadata.
+    """
+    return re.sub(r"^Album\s*-\s*", "", str(name), flags=re.IGNORECASE).strip()
+
+
 def _probe_info(url: str) -> dict:
     """
     Contrato:
@@ -221,7 +228,7 @@ def _compose_folder_parts(info_dict):
         Devuelve una tupla `(artist_name, album_title, is_playlist)`.
         Usa valores por defecto cuando no encuentra artista o album.
     """
-    album_title = (
+    album_title = _clean_album_name(
         info_dict.get("playlist_title") or info_dict.get("title") or "Unknown Album"
     )
 
