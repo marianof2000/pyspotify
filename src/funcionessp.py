@@ -11,10 +11,8 @@ import subprocess
 import time
 from urllib.parse import urlparse
 
-HOME = os.path.expanduser("~")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 RAIZ = str(PROJECT_ROOT / "salida")
-SPOTDL_PROGRAM = os.path.join(HOME, ".pyenv/shims/spotdl")
 
 
 def _is_spotify_url(url: str) -> bool:
@@ -77,15 +75,13 @@ def _check_dependencies() -> bool:
     Contrato:
         Verifica que las dependencias externas de Spotify esten disponibles.
     Precondiciones:
-        `SPOTDL_PROGRAM` puede apuntar a un ejecutable local o estar ausente.
+        El entorno activo debe proporcionar el comando `spotdl`.
     Postcondiciones:
         Devuelve True si `spotdl` puede ejecutarse; False en caso contrario.
     """
-    if os.path.isfile(SPOTDL_PROGRAM) and os.access(SPOTDL_PROGRAM, os.X_OK):
-        return True
     if shutil.which("spotdl"):
         return True
-    logging.error(f"No se encontró spotdl ejecutable en {SPOTDL_PROGRAM} ni en PATH")
+    logging.error("No se encontró spotdl en PATH. Ejecutá el proyecto con `uv run`.")
     return False
 
 
@@ -96,11 +92,9 @@ def _spotdl_program() -> str:
     Precondiciones:
         `_check_dependencies` deberia haber validado disponibilidad previamente.
     Postcondiciones:
-        Devuelve la ruta hardcodeada si existe o el ejecutable encontrado en PATH.
+        Devuelve el ejecutable encontrado en PATH.
     """
-    if os.path.isfile(SPOTDL_PROGRAM) and os.access(SPOTDL_PROGRAM, os.X_OK):
-        return SPOTDL_PROGRAM
-    return shutil.which("spotdl") or SPOTDL_PROGRAM
+    return shutil.which("spotdl") or "spotdl"
 
 
 def _run_spotdl_command(command: List[str]):

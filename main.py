@@ -23,11 +23,10 @@ def main():
         # Lo mismo para YouTube, quitamos la bandera antes de pasar el control
         sys.argv.remove("--yt")
         pyyoutube.main()
-        
+
     else:
         print("Error: Debes especificar --sp (Spotify) o --yt (YouTube)")
-        print("Ejemplo: python main.py --sp -f lista.txt")
+        print("Ejemplo: uv run python main.py --sp -f lista.txt")
 
 if __name__ == "__main__":
     main()
-    

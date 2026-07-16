@@ -6,15 +6,13 @@ Scripts para descargar discos desde Spotify con `spotdl` y desde YouTube/YouTube
 
 - Python 3.
 - `ffmpeg` instalado y disponible en el sistema.
-- Dependencias Python declaradas en `requirements.txt`.
-- Para Spotify, el comando `spotdl` debe estar instalado. El codigo actual lo busca en `~/.pyenv/shims/spotdl`.
+- `uv` instalado.
+- Dependencias Python declaradas en `pyproject.toml` y fijadas en `uv.lock`.
 
 ## Instalacion
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv sync
 ```
 
 ## Uso
@@ -22,8 +20,8 @@ pip install -r requirements.txt
 El punto de entrada principal es `main.py`. Hay que indicar si se quiere usar Spotify o YouTube:
 
 ```bash
-python3 main.py --sp
-python3 main.py --yt
+uv run python main.py --sp
+uv run python main.py --yt
 ```
 
 Antes de descargar, cada flujo valida sus dependencias principales. Spotify verifica `spotdl`;
@@ -50,13 +48,13 @@ https://open.spotify.com/playlist/...
 Para ejecutar:
 
 ```bash
-python3 main.py --sp
+uv run python main.py --sp
 ```
 
 Tambien se puede indicar otro archivo:
 
 ```bash
-python3 main.py --sp -f lista.txt
+uv run python main.py --sp -f lista.txt
 ```
 
 Las descargas se guardan dentro de:
@@ -83,13 +81,13 @@ https://www.youtube.com/watch?v=...
 Para ejecutar con las opciones por defecto:
 
 ```bash
-python3 main.py --yt
+uv run python main.py --yt
 ```
 
 Tambien se puede indicar otro archivo, carpeta de salida o bitrate:
 
 ```bash
-python3 main.py --yt -f links.txt -o salida --kbps 320
+uv run python main.py --yt -f links.txt -o salida --kbps 320
 ```
 
 Opciones utiles:
@@ -108,7 +106,8 @@ El directorio `salida/` esta ignorado por Git, por lo que las descargas no queda
 
 ```text
 main.py                 # Selector entre Spotify y YouTube
-requirements.txt        # Dependencias directas
+pyproject.toml          # Proyecto y dependencias directas
+uv.lock                 # Versiones exactas resueltas por uv
 src/pyspotify.py        # Entrada actual para Spotify
 src/funcionessp.py      # Funciones de Spotify
 src/pyyoutube.py        # Entrada actual para YouTube
@@ -118,4 +117,4 @@ src/funcionesyt.py      # Funciones de YouTube / yt-dlp
 ## Notas
 
 - Se mantiene una sola entrada de Spotify: `src/pyspotify.py`.
-- Algunas rutas estan hardcodeadas para el entorno local. Una mejora pendiente es pasarlas a argumentos de linea de comandos o variables de entorno.
+- `uv run` crea/sincroniza el entorno `.venv` cuando hace falta; no es necesario activarlo manualmente.

@@ -1,2 +1,0 @@
-spotdl>=4.4.3
-yt-dlp

@@ -1,4 +1,5 @@
 salida/
+.venv/
 .agents/
 .codex/
 .mypy_cache/
