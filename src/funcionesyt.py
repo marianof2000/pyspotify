@@ -125,18 +125,25 @@ def _clean_album_name(name: str) -> str:
     return re.sub(r"^Album\s*-\s*", "", str(name), flags=re.IGNORECASE).strip()
 
 
-def _probe_info(url: str) -> dict:
+def _probe_info(
+    url: str, cookies: Optional[str] = None, proxy: Optional[str] = None
+) -> dict:
     """
     Contrato:
         Extrae metadata de una URL sin descargar el contenido.
     Precondiciones:
         `url` debe ser una URL aceptada por `yt-dlp`.
         Debe haber conectividad y soporte del extractor correspondiente.
+        Si se informan `cookies` o `proxy`, deben ser valores validos.
     Postcondiciones:
         Devuelve el diccionario de metadata entregado por `yt-dlp`.
         Puede propagar excepciones de `YoutubeDL.extract_info`.
     """
     ydl_opts = {"quiet": True, "skip_download": True}
+    if cookies:
+        ydl_opts["cookiefile"] = cookies
+    if proxy:
+        ydl_opts["proxy"] = proxy
     with YoutubeDL(ydl_opts) as ydl:
         return ydl.extract_info(url, download=False)
 
@@ -330,7 +337,7 @@ def _download_disc(
         Intenta renombrar miniaturas JPG a `*.cover.jpg` al finalizar.
     """
     try:
-        info = _probe_info(url)
+        info = _probe_info(url, cookies=cookies, proxy=proxy)
     except Exception as e:
         print(f"[WARN] No pude extraer metadata de: {url} -> {e}")
         return None
